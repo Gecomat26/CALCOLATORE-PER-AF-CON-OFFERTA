@@ -1027,6 +1027,12 @@
     display:none;
   }
 
+  /* Rimuovi intestazioni e piè di pagina del browser */
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
   /* Print */
   @media print{
     body{background:#fff;}
@@ -1896,14 +1902,16 @@
         <div class="form-group">
           <label for="offerta-prezzo-ftv">Prezzo FTV + IVA (€)</label>
           <input type="text" id="offerta-prezzo-ftv" placeholder="0,00">
+          <div id="offerta-catalogo-note-ftv" class="catalogo-note" style="display:none;"></div>
         </div>
 
-        <div class="form-group">
+        <div class="form-group" id="offerta-prezzo-batteria-group" style="display:none;">
           <label for="offerta-prezzo-batteria">Prezzo Batteria + IVA (€)</label>
           <input type="text" id="offerta-prezzo-batteria" placeholder="0,00">
+          <div id="offerta-catalogo-note-batteria" class="catalogo-note" style="display:none;"></div>
         </div>
 
-        <div class="form-group">
+        <div class="form-group" id="offerta-prezzo-pensiline-group" style="display:none;">
           <label for="offerta-prezzo-pensiline">Prezzo Pensiline + IVA (€)</label>
           <input type="text" id="offerta-prezzo-pensiline" placeholder="0,00">
         </div>
@@ -1928,7 +1936,10 @@
           </select>
         </div>
 
-        <button id="offerta-btn-print" class="btn btn-primary" style="width:100%; margin-top:16px;">🖨️ Stampa offerta</button>
+        <div style="display: flex; gap: 12px; margin-top: 16px;">
+          <button id="offerta-btn-print" class="btn btn-primary" style="flex: 1;">🖨️ Stampa offerta</button>
+          <button id="offerta-btn-reset" class="btn btn-secondary" style="flex: 1; background-color: #ef4444; border-color: #dc2626; color: white;">🔄 Cancella tutto</button>
+        </div>
       </div>
 
       <!-- PREVIEW OFFERTA -->
@@ -2079,6 +2090,85 @@
 </script>
 
 <script>
+// Dichiarazioni globali per funzioni catalogo (accessibili da tutte le IIFE)
+const FTV_RANGES = [
+  [3,5,4300,9100],[5.5,7.5,7900,12700],[8,10,11500,16300],[10.5,12.5,15100,19900],
+  [13,15,18700,23500],[15.5,17.5,22300,27100],[18,20,25900,30700],[20.5,22.5,26600,33100],
+  [23,25,29000,36500],[25.5,27.5,31400,39800],[28,30,34800,43200],[30.5,32.5,38100,46600],
+  [33,35,41500,49900],[35.5,37.5,44800,53300],[38,40,48200,56600],[40.5,42.5,51600,60000],
+  [43,45,54900,63400],[45.5,47.5,58300,66700],[48,50,61600,70100],[50.5,53.5,58200,73500],
+  [54,57,60700,77900],[57.5,60.5,65000,82200],[61,64,69400,86600],[64.5,67.5,73800,91000],
+  [68,71,78100,95300],[71.5,74.5,82500,99700],[75,78,86900,104100],[78.5,81.5,91200,108400],
+  [82,85,95600,122800],[85.5,88.5,100000,117200],[89,92,104400,121500],[92.5,95.5,108700,125900],
+  [96,99,113000,130300],
+  [99.5,105.5,91500,111100],[106,112,97800,117400],[112.5,118.5,105000,123700],
+  [119,125,105800,130000],[125.5,131.5,112000,136200],[132,138,118300,142500],
+  [138.5,144.5,124600,148800],[145,151,130900,155100],[151.5,157.5,137100,161300],
+  [158,164,143400,167600],[164.5,170.5,149700,173900],[171,177,156000,180200],
+  [177.5,183.5,162300,186500],[184,190,168500,192700],[190.5,196.5,174800,199000],
+  [197,203,181100,205300],[203.5,209.5,187400,211600],[210,216,193700,217900],
+  [216.5,222.5,199900,224100],[223,229,206200,230400],[229.5,235.5,212500,236700],
+  [236,242,218800,243000],[242.5,248.5,225100,249200],[249,255,231300,255500],
+  [255.5,261.5,237600,261800],[262,268,243900,268100],[268.5,274.5,250200,274400],
+  [275,281,256400,280600],[281.5,287.5,262700,286900],[288,294,269000,293200],
+  [294.5,300.5,275300,299500],[301,321,263100,293400],[321.5,341.5,274600,311400],
+  [342,367,285000,323000],[367.5,392.5,295400,334800]
+];
+
+const BATT_RANGES = [
+  [0.1,1,600,1400],[1.1,2,1200,2600],[2.1,3,1800,3600],[3.1,5,2400,5600],
+  [5.1,10,3500,11200],[10.1,20,5600,20700],[20.1,30,8400,28000],[30.1,50,10500,42000],
+  [50.1,100,15800,74500],[95.1,100,15800,74500]
+];
+
+const FTV_CCI_EXTRA = 18000;
+
+function battMaxCaricabile(row){ return row[3] * 1.01; }
+function findNearestRange(value, ranges){
+  for (const r of ranges){
+    if (value >= r[0] && value <= r[1]) return r;
+  }
+  let nearest = ranges[0];
+  let minDist = Infinity;
+  for (const r of ranges){
+    const dist = value < r[0] ? (r[0] - value) : (value - r[1]);
+    if (dist < minDist){ minDist = dist; nearest = r; }
+  }
+  return nearest;
+}
+
+function batteryRangeSumDetailed(kw){
+  const lastRow = BATT_RANGES[BATT_RANGES.length - 1];
+  if (kw <= 100){
+    const r = findNearestRange(kw, BATT_RANGES);
+    const accessori = r[3] * 0.01;
+    const maxCaricabile = r[3] * 1.01;
+    return { min: r[2], max: maxCaricabile, maxVal: r[3], accessori: accessori };
+  }
+  const blocchi = Math.floor(kw / 100);
+  const resto = kw - blocchi * 100;
+  let min = blocchi * lastRow[2];
+  let maxVal = blocchi * lastRow[3];
+  let accessori = blocchi * (lastRow[3] * 0.01);
+  let max = blocchi * battMaxCaricabile(lastRow);
+  if (resto > 0){
+    const r = findNearestRange(resto, BATT_RANGES);
+    min += r[2];
+    maxVal += r[3];
+    accessori += (r[3] * 0.01);
+    max += battMaxCaricabile(r);
+  }
+  return { min, max, maxVal, accessori };
+}
+
+function fmtEUR(n){
+  return n.toLocaleString('it-IT', {style:'currency', currency:'EUR', minimumFractionDigits:0, maximumFractionDigits:0});
+}
+
+function parseImportoLocale(str){
+  return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
+}
+
 /* ============================================================
    MODE SWITCH
    ============================================================ */
@@ -2509,127 +2599,6 @@ La presente quotazione ha valore puramente indicativo ed è soggetta ad approvaz
 (function(){
   const el = id => document.getElementById(id);
 
-  // Ogni riga: [kWp minimo, kWp massimo, prezzo minimo, prezzo massimo]
-  // Accessori = prezzo massimo x 10%; Max caricabile = prezzo massimo x 1,10.
-  // Dalla fascia "99,5-105,5 kWp" in poi si aggiunge un costo fisso di
-  // consulenza impianto (CCI) di € 18.000 al Max caricabile.
-  const FTV_RANGES = [
-    [3,5,4300,9100],[5.5,7.5,7900,12700],[8,10,11500,16300],[10.5,12.5,15100,19900],
-    [13,15,18700,23500],[15.5,17.5,22300,27100],[18,20,25900,30700],[20.5,22.5,26600,33100],
-    [23,25,29000,36500],[25.5,27.5,31400,39800],[28,30,34800,43200],[30.5,32.5,38100,46600],
-    [33,35,41500,49900],[35.5,37.5,44800,53300],[38,40,48200,56600],[40.5,42.5,51600,60000],
-    [43,45,54900,63400],[45.5,47.5,58300,66700],[48,50,61600,70100],[50.5,53.5,58200,73500],
-    [54,57,60700,77900],[57.5,60.5,65000,82200],[61,64,69400,86600],[64.5,67.5,73800,91000],
-    [68,71,78100,95300],[71.5,74.5,82500,99700],[75,78,86900,104100],[78.5,81.5,91200,108400],
-    [82,85,95600,122800],[85.5,88.5,100000,117200],[89,92,104400,121500],[92.5,95.5,108700,125900],
-    [96,99,113000,130300],
-    [99.5,105.5,91500,111100],[106,112,97800,117400],[112.5,118.5,105000,123700],
-    [119,125,105800,130000],[125.5,131.5,112000,136200],[132,138,118300,142500],
-    [138.5,144.5,124600,148800],[145,151,130900,155100],[151.5,157.5,137100,161300],
-    [158,164,143400,167600],[164.5,170.5,149700,173900],[171,177,156000,180200],
-    [177.5,183.5,162300,186500],[184,190,168500,192700],[190.5,196.5,174800,199000],
-    [197,203,181100,205300],[203.5,209.5,187400,211600],[210,216,193700,217900],
-    [216.5,222.5,199900,224100],[223,229,206200,230400],[229.5,235.5,212500,236700],
-    [236,242,218800,243000],[242.5,248.5,225100,249200],[249,255,231300,255500],
-    [255.5,261.5,237600,261800],[262,268,243900,268100],[268.5,274.5,250200,274400],
-    [275,281,256400,280600],[281.5,287.5,262700,286900],[288,294,269000,293200],
-    [294.5,300.5,275300,299500],[301,321,263100,293400],[321.5,341.5,274600,311400],
-    [342,362,286000,329300],[362.5,382.5,303900,347200],[383,403,321900,365100],
-    [403.5,423.5,339800,383000],[424,444,357700,400900],[444.5,464.5,375600,418900],
-    [465,485,393530,436800],[485.5,505.5,411400,454700],[506,526,385600,431600],
-    [526.5,546.5,401600,447600],[547,567,407500,463600]
-  ];
-  const FTV_CCI_EXTRA = 18000; // aggiunto al max caricabile FTV solo se il flag "CCI presente" è attivo
-
-  // Ogni riga: [kW minimo, kW massimo, prezzo minimo, prezzo massimo]
-  // Max caricabile = prezzo massimo x 1,01 (accessori 1%).
-  const BATT_RANGES = [
-    [5,10,2750,8000],[10.1,15,5900,9500],[15.1,20,8600,13200],
-    [20.1,25,11400,15900],[25.1,30,13200,19100],[30.1,35,16000,21900],
-    [35.1,40,18600,24500],[40.1,45,21400,27300],[45.1,50,24100,31000],
-    [50.1,55,26400,33700],[55.1,60,29000,36400],[60.1,65,31800,40000],
-    [65.1,70,34600,43600],[70.1,75,38200,48200],[75.1,80,41000,51800],
-    [80.1,85,43600,56400],[85.1,90,46400,59100],[90.1,95,49100,61800],
-    [95.1,100,51800,65500]
-  ];
-
-  // Max caricabile FTV + Accessori (senza CCI): prezzo massimo x 1,10.
-  function ftvMaxCaricabile(row){
-    return row[3] * 1.10;
-  }
-  function battMaxCaricabile(row){
-    return row[3] * 1.01;
-  }
-
-  // Trova la fascia corrispondente al valore; se il valore cade in un "buco"
-  // tra due fasce (o fuori dai limiti della tabella), usa la fascia più vicina.
-  function findNearestRange(value, ranges){
-    for (const r of ranges){
-      if (value >= r[0] && value <= r[1]) return r;
-    }
-    let nearest = ranges[0];
-    let minDist = Infinity;
-    for (const r of ranges){
-      const dist = value < r[0] ? (r[0] - value) : (value - r[1]);
-      if (dist < minDist){ minDist = dist; nearest = r; }
-    }
-    return nearest;
-  }
-
-  // Le batterie oltre 100 kW proseguono "per multipli" del catalogo (indicazione
-  // esplicita del PDF): si scompone in blocchi pieni da 100 kW + un resto.
-  function batteryRangeSum(kw){
-    const lastRow = BATT_RANGES[BATT_RANGES.length - 1]; // 95,1-100 kW, usato come blocco da 100kW
-    if (kw <= 100){
-      const r = findNearestRange(kw, BATT_RANGES);
-      return { min: r[2], max: battMaxCaricabile(r) };
-    }
-    const blocchi = Math.floor(kw / 100);
-    const resto = kw - blocchi * 100;
-    let min = blocchi * lastRow[2];
-    let max = blocchi * battMaxCaricabile(lastRow);
-    if (resto > 0){
-      const r = findNearestRange(resto, BATT_RANGES);
-      min += r[2];
-      max += battMaxCaricabile(r);
-    }
-    return { min, max };
-  }
-
-  function batteryRangeSumDetailed(kw){
-    const lastRow = BATT_RANGES[BATT_RANGES.length - 1]; // 95,1-100 kW
-    if (kw <= 100){
-      const r = findNearestRange(kw, BATT_RANGES);
-      const accessori = r[3] * 0.01;
-      const maxCaricabile = r[3] * 1.01;
-      return { min: r[2], max: maxCaricabile, maxVal: r[3], accessori: accessori };
-    }
-    const blocchi = Math.floor(kw / 100);
-    const resto = kw - blocchi * 100;
-    let min = blocchi * lastRow[2];
-    let maxVal = blocchi * lastRow[3];
-    let accessori = blocchi * (lastRow[3] * 0.01);
-    let max = blocchi * battMaxCaricabile(lastRow);
-    if (resto > 0){
-      const r = findNearestRange(resto, BATT_RANGES);
-      min += r[2];
-      maxVal += r[3];
-      accessori += (r[3] * 0.01);
-      max += battMaxCaricabile(r);
-    }
-    return { min, max, maxVal, accessori };
-  }
-
-  function fmtEUR(n){
-    return n.toLocaleString('it-IT', {style:'currency', currency:'EUR', minimumFractionDigits:0, maximumFractionDigits:0});
-  }
-
-  function parseImportoLocale(str){
-    return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
-  }
-
-  // Collega il controllo a una coppia di campi (potenza FTV / batteria) più il
-  // prezzo principale del pannello, mostrando l'esito nel box indicato.
   function setupCatalogoCheck(potenzaId, batteriaId, prezzoId, noteId, cciId, isLeasing = false){
     const potenzaField = el(potenzaId);
     const batteriaField = el(batteriaId);
@@ -3265,6 +3234,24 @@ La presente quotazione ha valore puramente indicativo ed è soggetta ad approvaz
     updatePreview();
   });
 
+  // Toggle visibilità campo Prezzo Batteria
+  el('offerta-include-batteria')?.addEventListener('change', () => {
+    const prezzoBatteriaGroup = el('offerta-prezzo-batteria-group');
+    if (prezzoBatteriaGroup) {
+      prezzoBatteriaGroup.style.display = el('offerta-include-batteria').checked ? 'block' : 'none';
+    }
+    updatePreview();
+  });
+
+  // Toggle visibilità campo Prezzo Pensiline
+  el('offerta-pensilina')?.addEventListener('change', () => {
+    const prezzoPensilineGroup = el('offerta-prezzo-pensiline-group');
+    if (prezzoPensilineGroup) {
+      prezzoPensilineGroup.style.display = el('offerta-pensilina').checked ? 'block' : 'none';
+    }
+    updatePreview();
+  });
+
   // Bottone stampa
   el('offerta-btn-print')?.addEventListener('click', () => {
     // Validazione: in modalità offerta il proprietario immobile è obbligatorio
@@ -3291,7 +3278,147 @@ La presente quotazione ha valore puramente indicativo ed è soggetta ad approvaz
     }
     // Procedi con la stampa
     updatePreview();
+    
+    // Mostra istruzioni per disabilitare header/footer
+    alert('📖 ISTRUZIONI STAMPA\n\nNel dialogo di stampa che si aprirà:\n\n1. Clicca su "Altre impostazioni" o "Opzioni avanzate"\n2. Disabilita "Intestazioni e piè di pagina"\n\nQuesto rimuoverà le date e gli URL dal PDF.\n\nPoi clicca "Salva" o "Stampa".');
+    
     setTimeout(() => window.print(), 100);
+  });
+
+  // Controllo congruità prezzi Offerta Materiale vs Catalogo
+  function setupCatalogoCheckOfferta(){
+    const checkFTV = () => {
+      const potenza = parseFloat(String(el('offerta-potenza-ftv').value).replace(',', '.'));
+      const prezzo = parseImportoLocale(el('offerta-prezzo-ftv').value);
+      const note = el('offerta-catalogo-note-ftv');
+      
+      if (isNaN(potenza) || potenza <= 0 || prezzo <= 0){
+        if (note) note.style.display = 'none';
+        return;
+      }
+      
+      const r = findNearestRange(potenza, FTV_RANGES);
+      const minimoFTV = r[2];
+      const maxCaricabile = r[3] * 1.10;
+      
+      if (note) {
+        note.style.display = 'block';
+        
+        if (prezzo > maxCaricabile){
+          note.className = 'catalogo-note sopra';
+          note.innerHTML = `<strong>⚠️ Prezzo FTV superiore al range catalogo</strong><br>
+          <em>Fascia ${r[0]}-${r[1]} kWp → Range: ${fmtEUR(minimoFTV)} - ${fmtEUR(maxCaricabile)}</em>`;
+        } else if (prezzo < minimoFTV){
+          note.className = 'catalogo-note sotto';
+          note.innerHTML = `<strong>⚠️ Prezzo FTV inferiore al range catalogo</strong><br>
+          <em>Fascia ${r[0]}-${r[1]} kWp → Range: ${fmtEUR(minimoFTV)} - ${fmtEUR(maxCaricabile)}</em>`;
+        } else {
+          note.className = 'catalogo-note ok';
+          note.innerHTML = `<strong>✓ Prezzo FTV conforme</strong><br>
+          <em>Range catalogo: ${fmtEUR(minimoFTV)} - ${fmtEUR(maxCaricabile)}</em>`;
+        }
+      }
+      updatePreview();
+    };
+    
+    const checkBatteria = () => {
+      const batteria = parseFloat(String(el('offerta-kWh-batteria').value).replace(',', '.'));
+      const prezzo = parseImportoLocale(el('offerta-prezzo-batteria').value);
+      const note = el('offerta-catalogo-note-batteria');
+      
+      if (isNaN(batteria) || batteria <= 0 || prezzo <= 0){
+        if (note) note.style.display = 'none';
+        return;
+      }
+      
+      const { min, max } = batteryRangeSumDetailed(batteria);
+      
+      if (note) {
+        note.style.display = 'block';
+        
+        if (prezzo > max){
+          note.className = 'catalogo-note sopra';
+          note.innerHTML = `<strong>⚠️ Prezzo Batteria superiore al range catalogo</strong><br>
+          <em>${batteria} kWh → Range: ${fmtEUR(min)} - ${fmtEUR(max)}</em>`;
+        } else if (prezzo < min){
+          note.className = 'catalogo-note sotto';
+          note.innerHTML = `<strong>⚠️ Prezzo Batteria inferiore al range catalogo</strong><br>
+          <em>${batteria} kWh → Range: ${fmtEUR(min)} - ${fmtEUR(max)}</em>`;
+        } else {
+          note.className = 'catalogo-note ok';
+          note.innerHTML = `<strong>✓ Prezzo Batteria conforme</strong><br>
+          <em>Range catalogo: ${fmtEUR(min)} - ${fmtEUR(max)}</em>`;
+        }
+      }
+      updatePreview();
+    };
+    
+    // Listener FTV
+    el('offerta-potenza-ftv')?.addEventListener('input', checkFTV);
+    el('offerta-potenza-ftv')?.addEventListener('change', checkFTV);
+    el('offerta-prezzo-ftv')?.addEventListener('input', checkFTV);
+    el('offerta-prezzo-ftv')?.addEventListener('change', checkFTV);
+    
+    // Listener Batteria
+    el('offerta-kWh-batteria')?.addEventListener('input', checkBatteria);
+    el('offerta-kWh-batteria')?.addEventListener('change', checkBatteria);
+    el('offerta-prezzo-batteria')?.addEventListener('input', checkBatteria);
+    el('offerta-prezzo-batteria')?.addEventListener('change', checkBatteria);
+    
+    // Check iniziale
+    checkFTV();
+    checkBatteria();
+  }
+  
+  setupCatalogoCheckOfferta();
+
+  // Bottone Reset Offerta Materiale
+  el('offerta-btn-reset')?.addEventListener('click', () => {
+    // Conferma prima di cancellare
+    if (confirm('⚠️ Sei sicuro?\n\nQuesta azione cancellerà TUTTI i dati compilati nell\'Offerta Materiale e non può essere annullata.\n\nContinuare?')) {
+      // Campi testo
+      el('offerta-potenza-ftv').value = '';
+      el('offerta-marca-pannelli').value = '';
+      el('offerta-kWh-batteria').value = '';
+      el('offerta-marca-batteria').value = '';
+      el('offerta-marca-inverter').value = '';
+      el('offerta-proprietario').value = '';
+      el('offerta-luogo-installazione').value = '';
+      el('offerta-desc-pensilina').value = '';
+      el('offerta-desc-cci-aggiuntiva').value = '';
+      el('offerta-prezzo-ftv').value = '';
+      el('offerta-prezzo-batteria').value = '';
+      el('offerta-prezzo-pensiline').value = '';
+      el('offerta-prezzo-cci').value = '';
+      el('offerta-durata').value = '';
+      
+      // Checkbox
+      el('offerta-include-batteria').checked = false;
+      el('offerta-pensilina').checked = false;
+      el('offerta-cci').checked = false;
+      el('offerta-acc-struttura').checked = false;
+      el('offerta-acc-quadri').checked = false;
+      el('offerta-acc-collegamenti').checked = false;
+      
+      // Select
+      el('offerta-periodicita').selectedIndex = 0;
+      
+      // Nascondi i campi condizionali
+      const prezzoBatteriaGroup = el('offerta-prezzo-batteria-group');
+      if (prezzoBatteriaGroup) prezzoBatteriaGroup.style.display = 'none';
+      
+      const prezzoPensilineGroup = el('offerta-prezzo-pensiline-group');
+      if (prezzoPensilineGroup) prezzoPensilineGroup.style.display = 'none';
+      
+      const prezzoGroup = el('offerta-prezzo-cci-group');
+      if (prezzoGroup) prezzoGroup.style.display = 'none';
+      
+      // Aggiorna anteprima
+      updatePreview();
+      
+      // Scroll in alto per mostrare il modulo pulito
+      document.querySelector('.mode-panel.active')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   });
 
   // Update iniziale
