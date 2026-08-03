@@ -1524,19 +1524,19 @@
                   <td>IRS (%)</td>
 
                   <!-- CAMBIA QUI: IRS a 3 anni -->
-                  <td><input type="number" class="note-input" id="note-irs-3" step="0.001" value="2.73"></td>
+                  <td><input type="number" class="note-input" id="note-irs-3" step="0.001" value="3.02"></td>
 
                   <!-- CAMBIA QUI: IRS a 4 anni -->
-                  <td><input type="number" class="note-input" id="note-irs-4" step="0.001" value="2.74"></td>
+                  <td><input type="number" class="note-input" id="note-irs-4" step="0.001" value="3.03"></td>
 
                   <!-- CAMBIA QUI: IRS a 5 anni -->
-                  <td><input type="number" class="note-input" id="note-irs-5" step="0.001" value="2.75"></td>
+                  <td><input type="number" class="note-input" id="note-irs-5" step="0.001" value="3.06"></td>
 
                   <!-- CAMBIA QUI: IRS a 6 anni -->
-                  <td><input type="number" class="note-input" id="note-irs-6" step="0.001" value="2.78"></td>
+                  <td><input type="number" class="note-input" id="note-irs-6" step="0.001" value="3.08"></td>
 
                   <!-- CAMBIA QUI: IRS a 7 anni -->
-                  <td><input type="number" class="note-input" id="note-irs-7" step="0.001" value="2.81"></td>
+                  <td><input type="number" class="note-input" id="note-irs-7" step="0.001" value="3.11"></td>
                 </tr>
 
                 <!-- ============================================================ -->
@@ -1549,19 +1549,19 @@
                   <td>Euribor 3M (%)</td>
 
                   <!-- CAMBIA QUI: Euribor 3M (colonna 3 anni) -->
-                  <td><input type="number" class="note-input" id="note-eur-3" step="0.001" value="2.35"></td>
+                  <td><input type="number" class="note-input" id="note-eur-3" step="0.001" value="2.5063"></td>
 
                   <!-- CAMBIA QUI: Euribor 3M (colonna 4 anni) -->
-                  <td><input type="number" class="note-input" id="note-eur-4" step="0.001" value="2.35"></td>
+                  <td><input type="number" class="note-input" id="note-eur-4" step="0.001" value="2.5063"></td>
 
                   <!-- CAMBIA QUI: Euribor 3M (colonna 5 anni) -->
-                  <td><input type="number" class="note-input" id="note-eur-5" step="0.001" value="2.35"></td>
+                  <td><input type="number" class="note-input" id="note-eur-5" step="0.001" value="2.5063"></td>
 
                   <!-- CAMBIA QUI: Euribor 3M (colonna 6 anni) -->
-                  <td><input type="number" class="note-input" id="note-eur-6" step="0.001" value="2.35"></td>
+                  <td><input type="number" class="note-input" id="note-eur-6" step="0.001" value="2.5063"></td>
 
                   <!-- CAMBIA QUI: Euribor 3M (colonna 7 anni) -->
-                  <td><input type="number" class="note-input" id="note-eur-7" step="0.001" value="2.35"></td>
+                  <td><input type="number" class="note-input" id="note-eur-7" step="0.001" value="2.5063"></td>
                 </tr>
               </tbody>
             </table>
@@ -1574,7 +1574,7 @@
           <!-- ============================================================ -->
           <div class="field full" style="margin-top:14px;">
             <label for="note-riferimento">Nota sul periodo di riferimento (visibile agli utenti in alto nella pagina)</label>
-            <input type="text" id="note-riferimento" value="IRS: media mensile di giugno 2026 · Euribor 3M: rilevazione del 29/06/2026">
+            <input type="text" id="note-riferimento" value="IRS: media mensile di luglio 2026 · Euribor 3M: rilevazione del 30/07/2026">
           </div>
           <div class="hint" style="margin-top:8px;">
             Questi valori non vengono salvati automaticamente: se la pagina viene ricaricata o il file rinviato, tornano ai valori scritti nel file. Aggiornare qui in occasione di ogni modifica e ridistribuire il file, oppure ospitarlo in un'unica posizione condivisa.
@@ -1690,6 +1690,9 @@
           <span class="k">Totale "spesa" netta con Iper Ammortamento<span class="iper-formula">Prezzo del bene − Totale beneficio fiscale</span></span>
           <span class="v" id="iper-out-spesa">–</span>
         </div>
+        <div class="disclaimer-box" style="background-color: #fef3c7; border-left: 4px solid #f59e0b; margin-top: 12px;">
+          <strong style="color: #92400e;">NB:</strong> <span style="color: #92400e;">il presente conteggio prende in considerazione solo la QUOTA CAPITALE del bene, senza considerare l'impatto degli interessi del leasing finanziario sulla totale spesa.</span>
+        </div>
       </div>
 
       <div class="disclaimer-box" id="iper-disclaimer">
@@ -1782,9 +1785,9 @@
           <div class="breakdown-row"><span class="k">Numero canoni</span><span class="v" id="loc-out-ncanoni">–</span></div>
           <div class="breakdown-row totale-spesa-hidden"><span class="k">Totale spesa cliente</span><span class="v" id="loc-out-totale">–</span></div>
           <div class="breakdown-row"><span class="k">Spese di istruttoria</span><span class="v small" id="loc-out-istruttoria">–</span></div>
-          <div class="breakdown-row"><span class="k">Riacquisto</span><span class="v small" id="loc-out-riacquisto">–</span></div>
           <div class="breakdown-row"><span class="k">Spese di incasso</span><span class="v small" id="loc-out-incasso">Nessuna</span></div>
           <div class="breakdown-row"><span class="k">Assicurazione</span><span class="v small">All Risk inclusa nei canoni, a cura e carico dell'ente concedente</span></div>
+          <div class="breakdown-row"><span class="k">Riacquisto</span><span class="v small" id="loc-out-riacquisto">–</span></div>
         </div>
 
         <details class="compare">
